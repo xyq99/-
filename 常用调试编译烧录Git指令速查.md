@@ -154,8 +154,9 @@ sync
 - 设置ip地址
 
 ```
-ifconfig eth1 10.20.123.242 netmask 255.255.255.0 up
 ifconfig eth0 10.20.123.242 netmask 255.255.255.0 up
+ifconfig eth0 10.20.123.254 netmask 255.255.255.0 up
+ifconfig eth0 10.20.123.14 netmask 255.255.255.0 up
 ```
 
 - 查看eth的对应的哪一个gmac
@@ -218,7 +219,7 @@ umount /dev/mmcblk0p13;
 mkfs.ext2 /dev/mmcblk0p13; 
 mount -t ext4 -o rw /dev/mmcblk0p13 /var/mnt/emmc/scare_rw;
 df -h /var/mnt/emmc/scare_rw;
-
+MV
 mkdir .upgrade
 mv Z5_B359_T260722.02_M81031 .packet_raw
 scp Z5_B359_T260722.02_M81031 root@10.20.123.242:/var/mnt/emmc/scare_rw/.upgrade
@@ -329,6 +330,33 @@ strings /dev/mtd2 | grep -E 'U-Boot 20|U_BOOT:'
 strings /dev/mtd3 | grep -E 'KERNEL'
 ```
 
+### 2.16 擦除加密分区
+
+```
+dd if=/dev/zero of=/dev/mmcblk0p6 bs=1 seek=65536 count=28 conv=fsync
+dd if=/dev/mmcblk0p6 bs=1 skip=65536 count=28 2>/dev/null | od -An -tx1
+```
+
+### 2.17 修改加密芯片串号
+
+```
+echo set_code 0x01 0x24 0x7 > /dev/encrypt
+```
+
+### 2.18 修改rtc时间
+
+```
+date -s "2026-09-03 16:56:00"
+hwclock -w -f /dev/rtc0
+hwclock -s -f /dev/rtc0
+```
+
+### 2.19 挂载nfs
+
+```
+mount -o nolock -t nfs 192.168.82.172:/data2/nfs/yqtan /mnt
+```
+
 ## 3. Git 常用指令
 
 ### 3.1 生成最近一次提交的 patch
@@ -371,7 +399,7 @@ develop
 ### 3.4 追加更改到commit提交
 
 ```
-git commit --amend -F ~/git_eq
+git commit --amend -F ~/git_commit.txt
 ```
 
 ### 3.5 查找所有关键词的log提交
@@ -379,6 +407,24 @@ git commit --amend -F ~/git_eq
 ```
 git log --all --grep="新机型" --grep="新增.*机型" --grep="增加.*机型" --grep="添加.*机型" --
 oneline
+```
+
+### 3.6 取消commit提交并保存代码更改
+
+```
+git reset --soft HEAD~1
+```
+
+### 3.7 这是垃圾，帮我扔掉
+
+```
+git clean -fd
+```
+
+### 3.8 执行以下命令批量忽略当前所有的改动
+
+```
+git status -s msp/out/ | awk '{print $2}' | xargs git update-index --assume-unchanged
 ```
 
 ## 4. 编译方法
@@ -605,7 +651,7 @@ cat /proc/mtd
 示例：烧录 U-Boot 到 `mtdblock2`：
 
 ```sh
-dd if=u-boot.bin of=/dev/mtdblock2 bs=1M conv=fsync
+dd if=STM_X3N3.0_FDT_T26013000 of=/dev/mmcblk0p2 bs=1M conv=fsync
 ```
 
 示例：烧录扩展应用分区和本地应用分区：
@@ -665,6 +711,7 @@ dd if=/tmp/uboot.bin of=/dev/mmcblk0 bs=512 seek=1536 conv=notrunc
 
 ```sh
 dd if=/tmp/u-boot.bin of=/dev/mmcblk0p2 conv=notrunc
+dd if=STM_X3N3.0_UBOOT_T2608291514 of=/dev/mmcblk0p2 conv=notrunc
 dd if=/var/mnt/emmc/scare_rw/Z5_1G8G_partition_images/STM_Z5_ROOTFS_T25101000 of=/dev/mmcblk0p7 conv=notrunc
 
 dd if=/var/mnt/emmc/scare_rw/STM_Z5_LOADER_T26072900 of=/dev/mmcblk0p1 conv=notrunc
@@ -679,6 +726,7 @@ BAK 系统下分区节点可能是：
 
 ```sh
 dd if=/tmp/u-boot.bin of=/dev/mmcblk0p3 conv=notrunc
+dd if=STM_X3N3.0_UBOOT_T26082715 of=/dev/mmcblk0p2 conv=notrunc
 ```
 
 关键注意事项：
@@ -711,7 +759,7 @@ status tftp uboot STM_Z3_UBOOT_T23042000
 
 ```sh
 setenv ipaddr 10.20.123.129
-setenv serverip 10.20.123.14
+setenv serverip 10.20.123.54
 setenv gatewayip 10.20.123.251
 ```
 
@@ -1841,75 +1889,4 @@ git status
 ```
 
 最终 `git status` 应只显示你明确需要提交的文件。若还有 `.config`、`Module.symvers`、`include/generated/` 等内容，说明 kernel 编译产物还没有清理干净。
-
-## 9. 工程管理系统
-
-### 9.1 创建项目并开始
-
-```
-创建并开始开发项目：
-axera_Z5_2GB-DDR适配。硬件资料在……；硬件具体更改内容
-```
-
-### 9.2 提取临时会话并总结
-
-```
-请归档当前会话到所属项目，但不要把项目标记为 completed。
-
-提取并回写：
-1. 本次需求和关键决策
-2. 已修改或计划修改的源码路径
-3. 编译、测试和实测指标
-4. 硬件修改及相关资料
-5. 已验证的可复用经验
-6. 未完成事项和下一步
-
-更新对应的 .project 结构化记录和 SUMMARY.md，
-然后刷新项目索引。
-不要保存密码，不要记录未经验证的推测。
-```
-
-### 9.3  汇报当前的项目的进度
-
-```
-打开当前已有项目。
-
-先读取：
-1. .project/SUMMARY.md
-2. .project/project.json
-3. 未完成事项和结构化工程记录
-
-不要批量加载其他项目，也不要立即访问远程 SDK。
-先向我汇报项目状态、已有成果、待完成事项和建议的下一步。
-```
-
-### 9.4 其他平台的agent介入该系统
-
-```
-接管当前嵌入式项目。
-
-请先读取：
-1. AGENTS.md
-2. .project/project.json
-3. .project/SUMMARY.md
-4. 相关结构化工程记录
-
-然后使用 $check-engineering-workspace 检查当前状态。
-不要批量加载其他项目，不要立即修改远程 SDK；
-先汇报项目现状、已有成果、风险和未完成事项。
-```
-
-### 9.5 项目目录文件整理
-
-- 直接输入：
-
-```
-整理当前项目目录，先只生成目录整理预览，不移动任何文件。
-```
-
-- 确认预览后，再输入：
-
-```
-执行已经确认的目录整理计划，只处理预览中列出的文件。
-```
 
